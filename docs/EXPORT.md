@@ -152,3 +152,10 @@ Node-only dependency, so the browser worker never touches `fs`.
 - **Browser PDF runtime** is verified end-to-end via Playwright (loads the editor,
   exports, checks page count & image colorspaces); the Node path is fully
   test-covered. DOCX is pure-JS and identical in both.
+
+## Visual fidelity
+
+Page-level fidelity against Microsoft Word (and, optionally, LibreOffice) — the
+canvas paint path and the headless PDF export — is measured by the local
+[office visual-quality harness](../frontend/scripts/office-quality/README.md).
+See [QUALITY.md](./QUALITY.md) for the current benchmark and how to reproduce it.

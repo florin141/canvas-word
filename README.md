@@ -248,6 +248,8 @@ isomorphically in a browser Web Worker and on the Node backend over bundled
 metric-clone fonts. Embedders can save to their own pipeline: `exportDocx()` /
 `exportPdf()` return a `Blob`, and an `onSave` option re-routes the toolbar
 Export buttons. See [EXPORT.md](./EXPORT.md), [FONTS.md](./FONTS.md).
+Rendering fidelity against Microsoft Word is measured by the local
+[office visual-quality harness](./docs/QUALITY.md).
 
 **Programmatic generation** — a fluent builder (`@forevka/wordcanvas/builder`):
 compose documents in JS/TS instead of a C#/OOXML backend.

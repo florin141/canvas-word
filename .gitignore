@@ -2,6 +2,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# local visual-quality corpus, Office references, captures and reports
+.source/
+.idea
+
 # local agent state / scratch
 .omc/
 .agents/

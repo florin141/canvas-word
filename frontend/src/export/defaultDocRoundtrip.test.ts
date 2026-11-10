@@ -18,7 +18,7 @@
 // reference (importer counted the reference as 0-width while the model paints its
 // number). Keep this test broad — it's the tripwire for export round-trip fidelity.
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Block, Document } from "@cw/shared";
 import { runImport } from "../import/docx/pipeline";
 import { runExport } from "./pipeline";
@@ -127,7 +127,16 @@ function diffPaths(a: unknown, b: unknown, path = "", out: string[] = [], limit 
 
 describe("default showcase doc: export → open → export fidelity", () => {
   beforeAll(async () => {
+    // sampleDoc() bakes DATE fields from the current clock, so the pinned
+    // structural census below would drift with the calendar (a longer month name
+    // changes the char count). Pin Date for this file only; timers stay real.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-30T12:00:00.000Z"));
     await installMeasureHost();
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
   });
 
   it("is a stable fixed point across open → save → open (doc1 === doc2)", async () => {

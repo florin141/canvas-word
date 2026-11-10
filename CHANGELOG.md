@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Office visual-quality harness (DOCX).** A local-first benchmark (`npm run quality`) that
+  rasterizes Microsoft Word's PDF of a corpus document at 150 DPI and scores both the editor's
+  canvas and the headless PDF export against it with page-penalized grayscale SSIM — missing/extra
+  pages penalized, ±1 px edge tolerance, source-SHA verification, and coverage reported next to
+  the means. Includes a deterministic generated corpus, SHA-keyed Word/LibreOffice reference
+  caching, a one-document regression gate (`npm run quality:gate`, exits 1 on score, page
+  agreement, page-error, or per-page drops), a generated `docs/QUALITY.md` table
+  (`npm run quality:readme`), a manual LibreOffice CI workflow, ad-hoc `--source <file.docx>` checks
+  (auto reference + both channels + viewer), and a visual-fidelity comparer matching the
+  BetterOffice benchmarks app (document sidebar + filter, Swipe/Difference modes, Fit/100% zoom,
+  page strip, split divider, hold-B blink). No production renderer changes — the harness drives
+  the existing dev hooks.
+
 ### Changed
 - **Inspector information architecture: collapsible sections, live summaries, and a scope breadcrumb
   (Move 2).** With all four section families present the panel could get long, so it is now structured:

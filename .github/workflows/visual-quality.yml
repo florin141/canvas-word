@@ -1,0 +1,82 @@
+name: Visual quality
+
+# Manual-only visual fidelity benchmark. Word remains the authoritative local
+# oracle; this workflow uses LibreOffice on Linux as a secondary reference and
+# uploads the full run (rasters, scores, galleries, report) as an artifact.
+# Nothing is committed back to the repository.
+on:
+  workflow_dispatch:
+    inputs:
+      samples:
+        description: "Comma-separated sample ids (empty = full corpus)"
+        required: false
+        default: ""
+      channel:
+        description: "Render channel"
+        type: choice
+        options:
+          - both
+          - canvas
+          - pdf
+        default: both
+      reference:
+        description: "Reference engine (word only works on a Windows runner)"
+        type: choice
+        options:
+          - libreoffice
+          - word
+        default: libreoffice
+
+concurrency:
+  group: visual-quality-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install LibreOffice and metric-compatible fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libreoffice \
+            fonts-crosextra-carlito \
+            fonts-crosextra-caladea \
+            fonts-liberation \
+            fonts-liberation2
+          soffice --version
+
+      - name: Generate deterministic corpus
+        run: npm run quality:samples
+
+      - name: Run visual benchmark
+        env:
+          QUALITY_SAMPLES: ${{ inputs.samples }}
+          QUALITY_CHANNEL: ${{ inputs.channel }}
+          QUALITY_REFERENCE: ${{ inputs.reference }}
+        run: npm run quality
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-quality-${{ github.run_id }}
+          path: |
+            .source/office-quality/run
+            .source/office-quality/references
+          if-no-files-found: ignore
+          retention-days: 14

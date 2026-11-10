@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "id": "real-word-basic",
+      "title": "Real Word document (basic)",
+      "kind": "file",
+      "path": "frontend/src/import/docx/__fixtures__/real-word-basic.docx"
+    },
+    {
+      "id": "times-baseline",
+      "title": "Times New Roman calibration",
+      "kind": "generated",
+      "generator": "times-baseline"
+    },
+    {
+      "id": "text-showcase",
+      "title": "Text formatting showcase",
+      "kind": "generated",
+      "generator": "text-showcase"
+    },
+    {
+      "id": "tables",
+      "title": "Tables and merged cells",
+      "kind": "generated",
+      "generator": "tables"
+    },
+    {
+      "id": "media",
+      "title": "Images: alignment, rotation, crop",
+      "kind": "generated",
+      "generator": "media"
+    },
+    {
+      "id": "showcase",
+      "title": "Feature showcase",
+      "kind": "generated",
+      "generator": "showcase"
+    },
+    {
+      "id": "long-flow",
+      "title": "Long flowing document (15 pages)",
+      "kind": "generated",
+      "generator": "long-flow"
+    },
+    {
+      "id": "local-report",
+      "title": "Local report (optional)",
+      "kind": "glob",
+      "path": "frontend/RenderedReports*.docx",
+      "optional": true
+    }
+  ]
+}
