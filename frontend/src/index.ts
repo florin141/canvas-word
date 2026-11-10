@@ -280,6 +280,14 @@ export interface Editor {
    *  revealBlock/revealBookmark this does NOT scroll — it just sets the anchor so
    *  a following command (insert/format) targets the range. Used by agent tools. */
   setSelection(sel: DocSelection | null): void;
+  /** Register a callback invoked after every applied op (local or remote) with
+   *  that op's `mapPosition`, so external anchors can ride edits exactly like
+   *  bookmarks and review anchors. Returns a disposer. A throwing tracker is
+   *  logged and removed so it can never break an edit. */
+  trackPositions(fn: (map: (p: DocPosition) => DocPosition) => void): () => void;
+  /** Paint the current range selection in the inactive (gray) style while a
+   *  non-editor surface — the Ask AI popover — owns focus. */
+  setSelectionInactive(inactive: boolean): void;
   /** The current layout tree (pages, placed blocks, line boxes, fragments — all
    *  page-local geometry). Read-only snapshot for diagnostics/agent inspection of
    *  text placement and rendering. */
@@ -710,6 +718,8 @@ export function createEditor(
   let doc = initialDoc;
   let tree: LayoutTree = engine.layout(doc);
   let selection: DocSelection | null = null;
+  /** True while a floating AI surface owns focus; paints the selection gray. */
+  let selectionInactive = false;
   let cellSelection: CellSelection | null = null; // rectangular table-cell selection
   let pendingStyle: Partial<CharStyle> | null = null;
   let activeStory: BandScope | null = null; // header/footer story-edit scope
@@ -1106,17 +1116,17 @@ export function createEditor(
     // A rectangular cell selection paints filled cell rects and hides the caret;
     // it supersedes any lingering text selection visual.
     if (cellSelection) {
-      paint.setSelectionRects(cellSelectionRects());
+      paint.setSelectionRects(cellSelectionRects(), selectionInactive);
       paint.setCaret(null);
       return;
     }
     if (!selection) {
-      paint.setSelectionRects([]);
+      paint.setSelectionRects([], false);
       paint.setCaret(null);
       return;
     }
     if (isCollapsed(selection)) {
-      paint.setSelectionRects([]);
+      paint.setSelectionRects([], false);
       const caret = caretRect(tree, selection.focus, scope());
       paint.setCaret(caret);
       if (caret) {
@@ -1124,7 +1134,7 @@ export function createEditor(
         if (at) proxy.moveTo(at.left, at.top, caret.height);
       }
     } else {
-      paint.setSelectionRects(selectionRects(tree, selection, scope()));
+      paint.setSelectionRects(selectionRects(tree, selection, scope()), selectionInactive);
       paint.setCaret(null); // Word hides the caret while a range is selected
     }
   };
@@ -1971,6 +1981,20 @@ export function createEditor(
     return true;
   };
 
+  // External anchors (AI selection anchors today) ride the SAME per-op mapper as
+  // bookmarks/review anchors. Kept in a Set so a feature can dispose on teardown.
+  const positionTrackers = new Set<(map: (p: DocPosition) => DocPosition) => void>();
+  const notifyPositionTrackers = (map: (p: DocPosition) => DocPosition): void => {
+    for (const fn of positionTrackers) {
+      try {
+        fn(map);
+      } catch (err) {
+        console.error("[canvas-word] position tracker threw; removing it", err);
+        positionTrackers.delete(fn);
+      }
+    }
+  };
+
   const runOps = (ops: Op[]): Op[] => {
     const inverses: Op[] = [];
     for (const op of ops) {
@@ -1979,6 +2003,7 @@ export function createEditor(
       rebasePeers(res.mapPosition); // keep peer carets aligned with the edited text
       rebaseBookmarks(res.mapPosition);
       rebaseReviewLayer(res.mapPosition); // suggestion/comment anchors travel too
+      notifyPositionTrackers(res.mapPosition);
       inverses.unshift(res.inverse);
     }
     // Structural records are block-keyed (no text range to ride mapPosition), so
@@ -2114,6 +2139,7 @@ export function createEditor(
       rebasePeers(res.mapPosition); // peers' carets travel with the remote edit too
       rebaseBookmarks(res.mapPosition);
       rebaseReviewLayer(res.mapPosition); // remote insert shifts everyone's pins
+      notifyPositionTrackers(res.mapPosition);
       if (sel) {
         sel = {
           anchor: res.mapPosition(sel.anchor),
@@ -2648,6 +2674,7 @@ export function createEditor(
 
   const controller = createSelectionController({
     container,
+    editorInput: proxy.el,
     getTree: () => tree,
     getDoc: () => doc,
     getSelection: () => selection,
@@ -2732,7 +2759,7 @@ export function createEditor(
     },
   });
 
-  const keymapHandler = createKeymapHandler({ dispatch, undo, redo, toggleStyle });
+  const keymapHandler = createKeymapHandler({ dispatch, undo, redo, toggleStyle, editorInput: proxy.el });
   container.addEventListener("keydown", keymapHandler);
 
   // ---- clipboard (context-menu Cut/Copy/Paste) -----------------------------
@@ -4089,6 +4116,17 @@ export function createEditor(
     },
     setSelection(sel: DocSelection | null): void {
       setSelection(sel);
+    },
+    trackPositions(fn: (map: (p: DocPosition) => DocPosition) => void): () => void {
+      positionTrackers.add(fn);
+      return () => {
+        positionTrackers.delete(fn);
+      };
+    },
+    setSelectionInactive(inactive: boolean): void {
+      if (selectionInactive === inactive) return;
+      selectionInactive = inactive;
+      refreshSelectionVisuals();
     },
     getLayoutTree(): LayoutTree {
       return tree;

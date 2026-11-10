@@ -3,6 +3,8 @@ dist/
 *.tsbuildinfo
 
 # local agent state / scratch
+.idea
+.source
 .omc/
 .agents/
 scratchpad/

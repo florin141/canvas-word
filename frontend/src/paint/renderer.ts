@@ -301,8 +301,9 @@ export interface PaintScheduler {
   /** Story-edit affordance: dim the body and mark the band boundary (Word's
    *  header/footer mode). Null restores normal painting. */
   setBandEditMode(band: "header" | "footer" | null): void;
-  /** Precomputed highlight rects (geometry.selectionRects). Repaints affected pages. */
-  setSelectionRects(rects: Rect[]): void;
+  /** Precomputed highlight rects (geometry.selectionRects). Repaints affected
+   *  pages. `inactive` paints the gray non-focused style (Ask AI popover open). */
+  setSelectionRects(rects: Rect[], inactive?: boolean): void;
   /** Find-bar match highlights — painted under the selection. */
   setSearchRects(rects: Rect[]): void;
   /** Track-changes + comment overlays (insertion underline, deletion strike,
@@ -533,6 +534,7 @@ export function createPaintLayer(container: HTMLElement, opts: PaintLayerOptions
   };
   let tree: LayoutTree | null = null;
   let selectionRects: Rect[] = [];
+  let selectionInactive = false;
   let searchRects: Rect[] = [];
   let reviewDecos: ReviewDecorations = EMPTY_REVIEW_DECOS;
   let decorations: ResolvedDecorations = EMPTY_DECORATIONS;
@@ -814,10 +816,16 @@ export function createPaintLayer(container: HTMLElement, opts: PaintLayerOptions
     }
     // 2b. selection highlights (over fills, under text) — adaptive "difference"
     // blend so the band stays visible on shaded cells, not just the white page.
+    // The inactive style (Ask AI popover has focus) uses a flat gray instead.
     ctx.save();
-    ctx.globalCompositeOperation = "difference";
-    ctx.globalAlpha = SELECTION_DIFF_ALPHA;
-    ctx.fillStyle = SELECTION_DIFF_COLOR;
+    if (selectionInactive) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(160, 160, 160, 0.35)";
+    } else {
+      ctx.globalCompositeOperation = "difference";
+      ctx.globalAlpha = SELECTION_DIFF_ALPHA;
+      ctx.fillStyle = SELECTION_DIFF_COLOR;
+    }
     for (const r of selectionRects) {
       if (r.pageIndex === page.index) ctx.fillRect(r.x, r.y, r.width, r.height);
     }
@@ -1701,9 +1709,10 @@ export function createPaintLayer(container: HTMLElement, opts: PaintLayerOptions
       schedule();
     },
 
-    setSelectionRects(rects: Rect[]): void {
+    setSelectionRects(rects: Rect[], inactive = false): void {
       const affected = new Set([...pagesOf(selectionRects), ...pagesOf(rects)]);
       selectionRects = rects;
+      selectionInactive = inactive;
       for (const i of affected) if (liveCanvases.has(i)) dirty.add(i);
       schedule();
     },

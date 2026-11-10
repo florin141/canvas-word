@@ -11,6 +11,7 @@ import type { ChromePreset, CjkConfig, ContextToolbarSpec, DefaultStyleOverrides
 import type { CustomizeRibbon } from "../ribbon";
 import type { EditorCommand } from "../commands";
 import type { LoadProgress } from "./loadProgress";
+import type { AiOptions } from "../ai/types";
 
 export type { EditMode, FieldResolver };
 
@@ -214,6 +215,10 @@ export interface WordCanvasRuntime {
    *  registers all tool buckets; an object restricts/namespaces them. The polyfill
    *  is lazy-loaded only when this is set, so other embedders pay nothing. */
   agentTools?: boolean | AgentToolsOptions | undefined;
+  /** Opt-in AI writing assistant: chat side panel, "Ask AI" on a selection, and
+   *  provider settings. The `ai/` chunk is loaded on first use only, so an
+   *  AI-disabled embedder pays nothing. */
+  ai?: AiOptions | undefined;
   /** Initial view-chrome state (rulers, grid, snap). Omit ⇒ built-in defaults. */
   view?: WordCanvasViewOptions | undefined;
   /** Color theme override (per-instance). Omit ⇒ the built-in look. */

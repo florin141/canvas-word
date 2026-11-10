@@ -15,6 +15,7 @@ each consuming the package by name the way a third-party integrator would.
 | [`command-registry`](./command-registry) | Register custom commands + keyboard shortcuts (`commands`) — cross-platform `Mod+…` bindings, `handle.runCommand`, built-ins always win | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/command-registry) |
 | [`floating-toolbar`](./floating-toolbar) | Configure the floating selection mini-toolbar (`floatingToolbar`) — toggle it, pick/reorder built-in buttons, show it at a caret, add custom buttons | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/floating-toolbar) |
 | [`context-toolbars`](./context-toolbars) | Contextual floating toolbars — built-in image/hyperlink/text bars + a custom one registered via `contextToolbars` (priority-based, one shows at a time) | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/context-toolbars) |
+| [`ai`](./ai) | Opt-in AI assistant (`ai`) — chat panel, ✦ Ask AI on a selection, provider settings and queue; preconfigured for a local OpenAI-compatible endpoint | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/ai) |
 | [`decorations`](./decorations) | Draw custom overlays at document coordinates (`setDecorations`) — highlight/underline/box a range, badge a position; anchored across edits | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/decorations) |
 | [`custom-block`](./custom-block) | Add a new canvas-drawn block type (`registerBlockType`) — a bar-chart block that paginates like an image; lossy `.docx` export | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/custom-block) |
 | [`custom-fonts`](./custom-fonts) | Supply your own fonts (`fonts`) — a self-hosted PT Serif (4 faces + sizing), hide a built-in, export with the font embedded | None (static HTML) | [![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/Forevka/canvas-word/tree/main/examples/custom-fonts) |
@@ -32,12 +33,15 @@ Each **Open in StackBlitz** button boots the example in the browser against the
   `embed-multi`, `editor-constructor`) install the package and run under Vite.
 - The **static** examples (`embed-offline`, `ribbon-customization`,
   `command-registry`, `floating-toolbar`, `context-toolbars`, `decorations`,
-  `custom-block`, `custom-fonts`) keep their
+  `custom-block`, `custom-fonts`, `ai`) keep their
   no-build browser import map but each declares `@forevka/wordcanvas` as a
   dependency plus a `serve` static server (`npm start`), so StackBlitz installs
   the published package into the example's own `node_modules` and the import map's
-  `/node_modules/@forevka/wordcanvas/...` path resolves same-origin. You can run
-  them the same way locally from the example folder: `npm install && npm start`.
+  `/node_modules/@forevka/wordcanvas/...` path resolves same-origin. Locally, npm
+  workspaces hoist that package to the repo-root `node_modules`, so serve the repo
+  root instead (`npx serve .`) and open `/examples/<name>/`. (The `ai` example
+  also links the workspace build into its own folder on `npm start`, so serving
+  it from its own folder works too.)
 - `query-edit` and `merge-docs` need the **`./query` subpath** (the latter also
   uses `mergeDocuments` / `mergeAll`), which must be present in the published
   version (`npm view @forevka/wordcanvas exports`) — publish a current version if

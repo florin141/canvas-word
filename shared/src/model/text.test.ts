@@ -7,6 +7,7 @@ import {
   blockExists,
   blockIndexOf,
   bodyParagraphs,
+  documentText,
   isHiddenParagraph,
   isInCell,
   locateParagraph,
@@ -18,9 +19,11 @@ import {
   prevGrapheme,
   prevWordStart,
   replaceParagraphAt,
+  selectionText,
   shapeTextParagraphIds,
   styleAtRuns,
   textOfBlock,
+  textOfRange,
   textOfRuns,
 } from "./text";
 
@@ -331,6 +334,37 @@ describe("textOfRuns / textOfBlock", () => {
     const doc = docOf(paraRuns("a", [{ text: "Hello, ", style: CHAR }, { text: "world", style: CHAR }]));
     expect(textOfBlock(doc, "a")).toBe("Hello, world");
     expect(textOfBlock(doc, "missing")).toBe("");
+  });
+});
+
+describe("documentText / textOfRange / selectionText", () => {
+  it("documentText joins every navigable paragraph (body + table cell) with newlines", () => {
+    const doc = docOf(para("a", "Alpha"), tableWith("t", [para("c", "Cell")]), para("b", "Beta"));
+    expect(documentText(doc)).toBe("Alpha\nCell\nBeta");
+  });
+
+  it("textOfRange slices within one block, in either direction", () => {
+    const doc = docOf(para("a", "Hello world"));
+    expect(textOfRange(doc, { blockId: "a", offset: 0 }, { blockId: "a", offset: 5 })).toBe("Hello");
+    expect(textOfRange(doc, { blockId: "a", offset: 5 }, { blockId: "a", offset: 0 })).toBe("Hello");
+  });
+
+  it("textOfRange joins a cross-block range with newlines", () => {
+    const doc = docOf(para("a", "First"), para("b", "Second"), para("c", "Third"));
+    expect(textOfRange(doc, { blockId: "a", offset: 2 }, { blockId: "c", offset: 3 })).toBe("rst\nSecond\nThi");
+    expect(textOfRange(doc, { blockId: "c", offset: 3 }, { blockId: "a", offset: 2 })).toBe("rst\nSecond\nThi");
+  });
+
+  it("textOfRange returns null when an endpoint block is gone", () => {
+    const doc = docOf(para("a", "Alpha"));
+    expect(textOfRange(doc, { blockId: "a", offset: 0 }, { blockId: "missing", offset: 0 })).toBeNull();
+    expect(textOfRange(doc, { blockId: "missing", offset: 0 }, { blockId: "a", offset: 1 })).toBeNull();
+  });
+
+  it("selectionText reads the same range, or empty for an unknown point", () => {
+    const doc = docOf(para("a", "Hello"), para("b", "World"));
+    expect(selectionText(doc, { anchor: { blockId: "a", offset: 1 }, focus: { blockId: "b", offset: 3 } })).toBe("ello\nWor");
+    expect(selectionText(doc, { anchor: { blockId: "missing", offset: 0 }, focus: { blockId: "missing", offset: 0 } })).toBe("");
   });
 });
 

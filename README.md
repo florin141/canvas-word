@@ -164,6 +164,17 @@ an empty-paragraph ＋ **insert menu**. Embedders can register their own via the
 `contextToolbars` option (see
 [`examples/context-toolbars`](./examples/context-toolbars)).
 
+**AI assistant (opt-in)** — `ai: { enabled: true }` adds a right-docked chat
+panel (streaming, Stop, starter prompts, resizable, persisted), a leading
+**✦ Ask AI** action in the text selection bar (four chips, Send now / Add to
+queue, Replace / Insert / Copy, one-pass **Apply all**), and **Settings → AI
+Model Provider** (Claude, OpenAI, Gemini, OpenRouter, DeepSeek, and custom/local
+OpenAI-compatible endpoints; per-provider keys in this browser; Test connection).
+AI edits are ordinary transactions — one Ctrl+Z, and Suggesting mode turns them
+into tracked changes. The module is a lazy chunk: disabled or unused costs no
+download, no listener, and no request; an embedder `transport` can keep keys
+server-side. See [AI.md](./docs/AI.md) and [`examples/ai`](./examples/ai).
+
 **Styles (Style Manager)** — one **Manage Styles** dialog to create/edit/delete
 styles for every OOXML-styleable entity, each with a live canvas preview:
 paragraph (cycle-safe based-on), character (per-run, marked `ⓐ`), list

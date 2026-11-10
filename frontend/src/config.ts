@@ -250,8 +250,11 @@ export function resolveBehavior(b?: EditorBehavior): ResolvedBehavior {
 
 // ---- floating format toolbar (Word's selection mini-toolbar) ----------------
 
-/** A built-in floating-toolbar control. `"|"` renders a separator. */
+/** A built-in floating-toolbar control. `"|"` renders a separator.
+ *  `"askAi"` renders the ✦ Ask AI button plus its trailing separator; it is
+ *  hidden unless a non-empty range is selected and `ai.enabled` is set. */
 export type FloatingToolbarBuiltin =
+  | "askAi"
   | "font"
   | "fontSize"
   | "bold"

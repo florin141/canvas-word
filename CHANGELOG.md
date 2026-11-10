@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Opt-in AI writing assistant.** `ai: { enabled: true }` adds a right-docked chat
+  panel, a leading **✦ Ask AI** action to the selection toolbar (four chips + Send
+  now / Add to queue, with Replace/Insert/Copy and one-pass **Apply all**), and a
+  provider settings surface (Claude, OpenAI, Gemini, OpenRouter, DeepSeek, and
+  custom/local OpenAI-compatible endpoints). Keys stay in this browser's
+  `localStorage`; an embedder `transport` can keep them server-side. The AI module
+  is a lazy chunk — disabled or unused costs no download, listener, or request.
+  AI edits are ordinary transactions (one Ctrl+Z) and route through Suggesting
+  mode. See [docs/AI.md](./docs/AI.md) and [`examples/ai`](./examples/ai).
+
 ### Changed
 - **Inspector information architecture: collapsible sections, live summaries, and a scope breadcrumb
   (Move 2).** With all four section families present the panel could get long, so it is now structured:

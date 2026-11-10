@@ -10,6 +10,7 @@
 // instances can coexist on one page (class-scoped chrome, per-instance runtime).
 
 import type { AgentToolsOptions, EditMode, EditorHandle, FieldResolver, Participant, SaveEvent, SaveFormat, SaveHandler, WordCanvasEvent, WordCanvasRuntime, WordCanvasViewOptions } from "./app/runtime";
+import type { AiOptions } from "./ai/types";
 import type { ChildContent, ChildDocument, ChildEditorHandle, ChildRenderOptions, FieldResolveRequest, FieldResult } from "./index";
 import type { Document, Fragment, ReviewLayer, UserInfo } from "@cw/shared";
 import type { ChromePreset, CjkConfig, ContextToolbarSpec, CustomFontDef, CustomFontFaces, DefaultStyleOverrides, EditorBehavior, EditorTheme, FloatingToolbarButtonSpec, FloatingToolbarConfig, FloatingToolbarItem, FloatingToolbarOptions, FontsConfig, ToolbarContext } from "./config";
@@ -24,6 +25,7 @@ import type { DocSelection } from "@cw/shared";
 import { BUNDLE_SHARE, type LoadProgress } from "./app/loadProgress";
 
 export type { Document, UserInfo, Participant, EditMode, ReviewLayer, Fragment, FieldResolver, FieldResolveRequest, FieldResult, AgentToolsOptions, LoadProgress, WordCanvasViewOptions, SaveEvent, SaveFormat, SaveHandler };
+export type { AiOptions, AiStreamEvent, AiTransport, AiErrorCode, AiRequest, ChatMessage, ProviderConfig } from "./ai/types";
 export type { ChildDocument, ChildContent, ChildRenderOptions, ChildEditorHandle };
 export type { EditorTheme, DefaultStyleOverrides, EditorBehavior, FontsConfig, CjkConfig, CustomFontDef, CustomFontFaces };
 export type { FloatingToolbarConfig, FloatingToolbarOptions, FloatingToolbarItem, FloatingToolbarButtonSpec };
@@ -87,6 +89,13 @@ export interface WordCanvasOptions {
    *  don't opt in. Connect an agent via the WebMCP browser extension / Chrome
    *  DevTools MCP. */
   agentTools?: boolean | AgentToolsOptions;
+  /** Opt-in AI writing assistant: a chat side panel, an "Ask AI" action on the
+   *  text selection toolbar, and a provider settings surface. Calls go directly
+   *  from the browser to the provider the user chooses (keys live in this
+   *  browser's localStorage), or through an embedder-owned `transport`. The AI
+   *  module is a separate chunk loaded on first use — with `enabled: false`
+   *  (the default) the editor imports nothing and makes no AI request. */
+  ai?: AiOptions;
   /** Initial view-chrome state — full control over what the reader sees on open:
    *  the horizontal & vertical rulers, drawing grid + snap + step, the Outline /
    *  Bookmarks / Review / Activity panels, the ribbon toolbar (and whether it
@@ -134,10 +143,13 @@ export interface WordCanvasOptions {
    *  Pass `true`/`false` to toggle the default set, or an object to customize:
    *  `enabled` (default true), `onCaret` (also show at a bare caret, default
    *  false), and `buttons` (which controls appear + their order — built-in ids
-   *  `"font" | "fontSize" | "bold" | "italic" | "underline" | "strikethrough" |
-   *  "color" | "highlight" | "clearFormat"`, `"|"` separators, and your own custom
-   *  buttons `{ id, icon|label, tooltip?, onClick, active? }` whose `onClick` gets
-   *  the same context as a custom ribbon button). Never shown in view-only mode. */
+   *  `"askAi" | "font" | "fontSize" | "bold" | "italic" | "underline" |
+   *  "strikethrough" | "color" | "highlight" | "clearFormat"`, `"|"` separators,
+   *  and your own custom buttons `{ id, icon|label, tooltip?, onClick, active? }`
+   *  whose `onClick` gets the same context as a custom ribbon button). `"askAi"`
+   *  is inserted automatically at the front when `ai.enabled` is set and you did
+   *  not supply an explicit `buttons` list; it renders only for a text range,
+   *  never at a bare caret. Never shown in view-only mode. */
   floatingToolbar?: FloatingToolbarConfig;
   /** Register custom **contextual floating toolbars** shown for your own contexts,
    *  alongside the built-in image / hyperlink / text-selection bars. Each spec has a
@@ -223,6 +235,7 @@ export class WordCanvas {
         knownUsers: opts.knownUsers,
         resolveField: opts.resolveField,
         agentTools: opts.agentTools,
+        ai: opts.ai,
         view: opts.view,
         theme: opts.theme,
         overrideDefaultStyles: opts.overrideDefaultStyles,

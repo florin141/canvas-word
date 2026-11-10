@@ -5,6 +5,7 @@
 import type { Command } from "../editor/state";
 import { insertColumnBreak, insertPageBreak } from "../editor/commands";
 import { keyMatches } from "../commands";
+import { isForeignEditable } from "./editableTarget";
 
 export type StyleKey = "bold" | "italic" | "underline" | "strikethrough" | "caps" | "smallCaps" | "doubleStrikethrough";
 
@@ -14,6 +15,10 @@ export interface KeymapDeps {
   redo(): void;
   /** Range -> restyle ops; collapsed caret -> pending typing style. */
   toggleStyle(key: StyleKey): void;
+  /** The hidden IME proxy. Keys targeting it are editor input; keys targeting any
+   *  other form control (AI panel composer, dialog inputs) must never run editor
+   *  commands. Omit to allow only the container itself as before. */
+  editorInput?: HTMLElement;
 }
 
 /** Declarative twin of the chords handled below — the SINGLE source the shortcuts
@@ -32,6 +37,9 @@ export const KEYMAP_ENTRIES: { chord: string; label: string }[] = [
 
 export function createKeymapHandler(deps: KeymapDeps): (ev: KeyboardEvent) => void {
   return (ev: KeyboardEvent): void => {
+    // Typing in the AI panel / a dialog must never bold the document or undo an
+    // edit. The IME proxy is explicitly allowed (it is the editor's input).
+    if (isForeignEditable(ev.target, deps.editorInput)) return;
     const ctrl = ev.ctrlKey || ev.metaKey;
     // Alt must be absent: Windows reports AltGr as Ctrl+Alt, and the physical-code
     // fallback below would otherwise read AltGr+Z on a Polish layout (produces 'ż',

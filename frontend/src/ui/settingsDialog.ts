@@ -35,6 +35,12 @@ const CSS = `
 .cw-set-seg-btn:hover{background:#eceef1;}
 .cw-set-seg-btn.active{background:#2b579a;color:#fff;font-weight:600;}
 .cw-set-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;border-top:1px solid #e6e8eb;}
+.cw-set-action{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid #e1e3e6;border-radius:8px;padding:10px 12px;}
+.cw-set-action-txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.cw-set-action-btn{height:30px;padding:0 14px;border-radius:6px;border:1px solid #2b579a;background:#fff;color:#2b579a;
+  font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.cw-set-action-btn:hover{background:#eef3fb;}
 .cw-set-foot button{height:30px;padding:0 16px;border-radius:6px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;
   border:1px solid #2b579a;background:#2b579a;color:#fff;}
 :root[data-theme="dark"] .cw-set-modal{background:#26282c;color:#e6e6e6;border-color:#4a4a4a;}
@@ -47,12 +53,16 @@ const CSS = `
 :root[data-theme="dark"] .cw-set-seg-btn{color:#dfe1e5;border-right-color:#34373c;}
 :root[data-theme="dark"] .cw-set-seg-btn:hover{background:#34373c;}
 :root[data-theme="dark"] .cw-set-seg-btn.active{background:#3d6ba5;color:#fff;}
+:root[data-theme="dark"] .cw-set-action{border-color:#34373c;}
+:root[data-theme="dark"] .cw-set-action-btn{background:#2a2c30;color:#7cb0ff;border-color:#3d6ba5;}
+:root[data-theme="dark"] .cw-set-action-btn:hover{background:#2c3340;}
 :root[data-theme="dark"] .cw-set-foot{border-color:#34373c;}
 :root[data-theme="dark"] .cw-set-foot button{background:#3d6ba5;border-color:#3d6ba5;}
 `;
 
 /** A segmented (radio-style) choice among mutually-exclusive values. */
 export interface SettingsSegmentedRow {
+  kind?: "segmented";
   /** Stable id (namespaced, e.g. "appearance.theme") — for the a11y group + tests. */
   id: string;
   label: string;
@@ -65,7 +75,17 @@ export interface SettingsSegmentedRow {
   set: (value: string) => void;
 }
 
-export type SettingsRow = SettingsSegmentedRow; // one kind today; room for more
+/** A row that opens another surface (e.g. Settings → AI Model Provider…). */
+export interface SettingsActionRow {
+  kind: "action";
+  id: string;
+  label: string;
+  hint?: string;
+  buttonLabel: string;
+  onClick: () => void;
+}
+
+export type SettingsRow = SettingsSegmentedRow | SettingsActionRow;
 
 export interface SettingsGroup {
   title: string;
@@ -130,6 +150,19 @@ function segmented(row: SettingsSegmentedRow): { wrap: HTMLElement; refresh: () 
   return { wrap, refresh };
 }
 
+/** One action row: label/hint on the left, a button that opens another surface. */
+function actionRow(row: SettingsActionRow): HTMLElement {
+  const wrap = el("div", "cw-set-row cw-set-action");
+  const text = el("div", "cw-set-action-txt");
+  text.append(el("div", "cw-set-row-lab", row.label));
+  if (row.hint) text.append(el("div", "cw-set-row-hint", row.hint));
+  const button = el("button", "cw-set-action-btn", row.buttonLabel);
+  button.type = "button";
+  button.addEventListener("click", () => row.onClick());
+  wrap.append(text, button);
+  return wrap;
+}
+
 /** Show the Settings dialog. Non-blocking; every control applies live. */
 export function showSettingsDialog(o: SettingsDialogOptions): void {
   const shell = createDialogShell({
@@ -144,7 +177,7 @@ export function showSettingsDialog(o: SettingsDialogOptions): void {
     if (group.rows.length === 0) continue;
     const g = el("div", "cw-set-group");
     g.append(el("div", "cw-set-group-ttl", group.title));
-    for (const row of group.rows) g.append(segmented(row).wrap);
+    for (const row of group.rows) g.append(row.kind === "action" ? actionRow(row) : segmented(row).wrap);
     shell.body.append(g);
   }
 

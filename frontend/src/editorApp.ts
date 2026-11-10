@@ -57,6 +57,7 @@ import { loadCollabDocument, loadCollabReview, publishDocument } from "./sync/co
 import { attachMentionAutocomplete } from "./review/mentions";
 import { showBusy } from "./app/busyOverlay";
 import { showNotice } from "./app/notice";
+import type { AiFeature, AiHost } from "./ai";
 import { emitBuilderCode } from "./codegen/emit";
 // Ribbon/toolbar command set + style helpers + icons — the chrome, not the core.
 // (Hoisted here from the toolbar block; ES imports must be top-level, and the
@@ -577,6 +578,61 @@ const editorOpts = {
   },
 };
 let editor = createEditor(app, doc, editorOpts);
+
+// ---- AI assistant (opt-in, lazy) ------------------------------------------
+// The AI module is a separate chunk, imported only when the user first opens an
+// AI surface. `aiHost` is the module's entire view of the editor, so its
+// session/apply logic stays independent of editor internals.
+let aiFeature: AiFeature | null = null;
+let aiLoad: Promise<AiFeature | null> | null = null;
+const aiHost: AiHost = {
+  signal: teardown.signal,
+  panelEl: shell.aiPanel,
+  rootEl: shell.root,
+  getDocument: () => editor.getDocument(),
+  getSelection: () => editor.getSelection(),
+  setSelection: (sel) => editor.setSelection(sel),
+  getSelectionRect: () => editor.getSelectionAnchorRect(),
+  hasRangeSelection: () => {
+    const sel = editor.getSelection();
+    return !!sel && !(sel.anchor.blockId === sel.focus.blockId && sel.anchor.offset === sel.focus.offset);
+  },
+  getMode: () => editor.getMode(),
+  isReadonly: () => editor.isReadonly(),
+  getChangeHead: () => editor.getChangeHead(),
+  dispatch: (cmd) => editor.dispatch(cmd),
+  focusEditor: () => editor.focus(),
+  trackPositions: (fn) => editor.trackPositions(fn),
+  setSelectionInactive: (inactive) => editor.setSelectionInactive(inactive),
+  notify: (message, kind) => {
+    showNotice(message, kind ?? "warning");
+  },
+  setPanelOpen: (open) => {
+    shell.aiPanel.classList.toggle("open", open);
+  },
+  refreshToolbars: () => refreshContextToolbars(),
+};
+
+/** Load the AI chunk on first use; returns null when AI is disabled. */
+const ensureAi = (): Promise<AiFeature | null> => {
+  const opts = runtime.ai;
+  if (!opts?.enabled) return Promise.resolve(null);
+  if (aiFeature) return Promise.resolve(aiFeature);
+  if (!aiLoad) {
+    aiLoad = import("./ai")
+      .then(({ mountAiFeature }) => {
+        if (teardown.signal.aborted) return null;
+        aiFeature = mountAiFeature(aiHost, opts);
+        return aiFeature;
+      })
+      .catch((err: unknown) => {
+        console.error("[canvas-word] AI module failed to load", err);
+        showNotice("The AI assistant could not load.", "warning");
+        return null;
+      });
+  }
+  return aiLoad;
+};
 
 // Media retention: declare which mediaIds this mount's CURRENT document
 // references (read live at prune time — `doc` is reassigned on replacement).
@@ -1860,6 +1916,8 @@ if (toolbar) {
   // ribbon tab. One dialog structured as groups, so future prefs slot in without a
   // redesign. The File-tab button below is harvested into the Ctrl+K palette, which
   // is how it stays reachable under the minimal chrome (which has no File tab).
+  const aiSettingsOffered =
+    runtime.ai?.enabled === true && (runtime.ai.showSettings ?? runtime.ai.transport === undefined);
   const openSettings = (): void => {
     const groups: SettingsGroup[] = [];
     const appearance: SettingsGroup["rows"] = [];
@@ -1891,12 +1949,29 @@ if (toolbar) {
       });
     }
     if (appearance.length > 0) groups.push({ title: "Appearance", rows: appearance });
+    if (aiSettingsOffered) {
+      groups.push({
+        title: "AI",
+        rows: [
+          {
+            kind: "action",
+            id: "ai.provider",
+            label: "AI Model Provider",
+            hint: "Choose the provider, API key and model used by the assistant.",
+            buttonLabel: "Open…",
+            onClick: () => {
+              void ensureAi().then((feature) => feature?.openSettings());
+            },
+          },
+        ],
+      });
+    }
     showSettingsDialog({ groups });
   };
   // Every row is individually gated, so "enabled" alone can still leave nothing to
   // show — with the Theme row held back by THEME_UI_READY, `settings.chrome: false`
   // empties the dialog. Don't offer a button that opens a blank surface.
-  if (config.settings.enabled && (themeUiOffered || config.settings.chrome)) {
+  if (config.settings.enabled && (themeUiOffered || config.settings.chrome || aiSettingsOffered)) {
     group(fileTab, "Settings");
     // Title is plain "Settings" so the command palette (which harvests the ribbon by
     // button title) lists it as exactly "Settings" — the required reach under the
@@ -2629,6 +2704,14 @@ if (toolbar) {
       ]),
     );
   });
+
+  // ---- AI (opt-in: the group exists only when the embedder enabled AI) ----
+  if (runtime.ai?.enabled) {
+    group(home, "AI");
+    bigBtn("✦", "AI", "AI assistant (chat panel)", () => {
+      void ensureAi().then((feature) => feature?.togglePanel());
+    });
+  }
 
   // ===== View tab ==========================================================
   const view = tab("view", "View");
@@ -5391,6 +5474,17 @@ if (!readonly) {
 
   // Text format bar (priority 20) — over a range (always) or a caret (config.onCaret).
   if (config.floatingToolbar.enabled) {
+    // Ask AI leads the bar when AI is enabled and the embedder did not supply an
+    // explicit button list (an explicit list is theirs to customize).
+    const aiEnabled = runtime.ai?.enabled === true;
+    const explicitFloatingButtons =
+      typeof runtime.floatingToolbar === "object" &&
+      runtime.floatingToolbar !== null &&
+      Array.isArray(runtime.floatingToolbar.buttons);
+    const floatingConfig =
+      aiEnabled && !explicitFloatingButtons && !config.floatingToolbar.buttons.includes("askAi")
+        ? { ...config.floatingToolbar, buttons: ["askAi" as const, ...config.floatingToolbar.buttons] }
+        : config.floatingToolbar;
     manager.register(
       createFloatingFormatBar({
         anchorRect: () => editor.getSelectionAnchorRect(),
@@ -5399,8 +5493,15 @@ if (!readonly) {
         fonts: () => toolbarFonts(config.fonts),
         pxToPt: (px) => Math.round(sharedPxToPt(px) * 2) / 2,
         focus: () => editor.focus(),
-        config: config.floatingToolbar,
+        config: floatingConfig,
         runCustomButton,
+        ...(aiEnabled
+          ? {
+              askAi: () => {
+                void ensureAi().then((feature) => feature?.openAskAiPopover());
+              },
+            }
+          : {}),
         actions: {
           toggle: (key) => editor.toggleStyle(key),
           setFontFamily: (value) => editor.setCharStyle({ fontFamily: value }),
@@ -5824,6 +5925,10 @@ if (runtime.commands?.length) {
 runtime.onLoadProgress?.({ phase: "ready", percent: 1, loaded: 0, total: 0 });
 runtime.onReady?.(handle);
 runtime.onEvent?.({ type: "ready" });
+
+// AI panel persisted-open: load the chunk only when the embedder asked for the
+// panel to start open. Every other path waits for a user click.
+if (runtime.ai?.enabled && runtime.ai.panel?.defaultOpen) void ensureAi();
 
 // WebMCP agent tooling (opt-in). Lazy-load the polyfill + bridge so non-agent
 // embedders never pull them into their bundle; initialize navigator.modelContext,

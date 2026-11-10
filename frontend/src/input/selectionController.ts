@@ -24,6 +24,7 @@ import {
 } from "@cw/shared";
 import { findTableById } from "../editor/commands";
 import { keyMatches } from "../commands";
+import { isForeignEditable } from "./editableTarget";
 import type { LayoutTree } from "../layout/layoutTree";
 import {
   comparePositions,
@@ -60,6 +61,9 @@ const ARROW_DELTA: Record<string, [number, number] | undefined> = {
 
 export interface SelectionControllerDeps {
   container: HTMLElement;
+  /** The hidden IME proxy — keys targeting it are editor input; every other
+   *  form control inside the container keeps its own keystrokes. */
+  editorInput?: HTMLElement;
   getTree(): LayoutTree;
   getDoc(): Document;
   getSelection(): DocSelection | null;
@@ -759,6 +763,9 @@ export function createSelectionController(deps: SelectionControllerDeps): Select
   // ---- keyboard ------------------------------------------------------------
 
   const onKeyDown = (ev: KeyboardEvent): void => {
+    // A keystroke typed into the AI panel / a dialog field belongs to that field,
+    // never to the document caret (Backspace must not delete the selection).
+    if (isForeignEditable(ev.target, deps.editorInput)) return;
     const sel = deps.getSelection();
     const tree = deps.getTree();
     const ctrl = ev.ctrlKey || ev.metaKey;

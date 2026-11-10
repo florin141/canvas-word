@@ -50,6 +50,27 @@ if (viewParam) {
 const useOnSave = params.get("onSave") === "1";
 const titleParam = params.get("title");
 
+// `?ai=1` enables the opt-in AI assistant on the dev page; `?aiOpen=1` starts
+// with the panel open, and `?aiProvider=<JSON>` preconfigures a ProviderConfig
+// (e.g. a local OpenAI-compatible endpoint, or a mock used by Playwright).
+let ai: import("./wordcanvas").AiOptions | undefined;
+if (params.get("ai") === "1") {
+  let provider: import("./wordcanvas").ProviderConfig | undefined;
+  const providerParam = params.get("aiProvider");
+  if (providerParam) {
+    try {
+      provider = JSON.parse(providerParam) as import("./wordcanvas").ProviderConfig;
+    } catch {
+      console.warn("[dev] ignoring malformed ?aiProvider= JSON");
+    }
+  }
+  ai = {
+    enabled: true,
+    panel: { defaultOpen: params.get("aiOpen") === "1" },
+    ...(provider ? { provider } : {}),
+  };
+}
+
 // Online (a backend is configured): ask who you are so edits/carets are
 // attributed. Offline: no identity needed.
 const user = backend ? await showIdentityPopup() : undefined;
@@ -81,6 +102,7 @@ const editor = new WordCanvas({
   ...(params.get("devMode") === "true" ? { develop: true } : {}),
   // `?chrome=minimal` switches to the quiet command bar (Move 1); default ribbon.
   ...(params.get("chrome") === "minimal" ? { chrome: "minimal" as const } : params.get("chrome") === "ribbon" ? { chrome: "ribbon" as const } : {}),
+  ...(ai ? { ai } : {}),
   knownUsers,
   onLoadProgress,
 });

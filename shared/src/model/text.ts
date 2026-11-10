@@ -4,6 +4,7 @@
 
 import type { BandContainer, Block, CharStyle, Document, Paragraph, Run, ShapeBlock } from "./document";
 import { BAND_CONTAINERS } from "./document";
+import type { DocPosition, DocSelection } from "./position";
 
 export const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 export const words = new Intl.Segmenter(undefined, { granularity: "word" });
@@ -144,6 +145,51 @@ export const blockById = (doc: Document, blockId: string): Paragraph | undefined
 export const blockIndexOf = (doc: Document, blockId: string): number => {
   const i = paraIndex(doc).byId.get(blockId);
   return i === undefined ? -1 : i;
+};
+
+/** Plain text of the whole parity-visible paragraph space (body including table
+ *  cells, plus band stories), one paragraph per line. Used for AI/agent context,
+ *  not for layout. */
+export const documentText = (doc: Document): string =>
+  paragraphsOf(doc)
+    .map((p) => textOfRuns(p.runs))
+    .join("\n");
+
+/** Plain text of a model range, endpoints in either order. Cross-block ranges are
+ *  joined with "\n" (one line per paragraph). Returns null when an endpoint block
+ *  no longer exists — callers must treat that as a stale range, never guess. */
+export const textOfRange = (doc: Document, start: DocPosition, end: DocPosition): string | null => {
+  let a = start;
+  let b = end;
+  let aIdx = blockIndexOf(doc, a.blockId);
+  let bIdx = blockIndexOf(doc, b.blockId);
+  if (aIdx < 0 || bIdx < 0) return null;
+  if (aIdx > bIdx || (aIdx === bIdx && a.offset > b.offset)) {
+    [a, b] = [b, a];
+    [aIdx, bIdx] = [bIdx, aIdx];
+  }
+  const paras = paragraphsOf(doc);
+  if (aIdx === bIdx) return textOfRuns(paras[aIdx]!.runs).slice(a.offset, b.offset);
+  const parts: string[] = [textOfRuns(paras[aIdx]!.runs).slice(a.offset)];
+  for (let i = aIdx + 1; i < bIdx; i++) parts.push(textOfRuns(paras[i]!.runs));
+  parts.push(textOfRuns(paras[bIdx]!.runs).slice(0, b.offset));
+  return parts.join("\n");
+};
+
+/** Best-effort plain text of a selection (anchor/focus in either order). Mirrors
+ *  textOfRange, with a same-block fallback for a block that isn't in the
+ *  paragraph index (e.g. a degenerate anchor on a non-paragraph block). */
+export const selectionText = (doc: Document, sel: DocSelection): string => {
+  const ranged = textOfRange(doc, sel.anchor, sel.focus);
+  if (ranged !== null) return ranged;
+  if (sel.anchor.blockId === sel.focus.blockId) {
+    const p = blockById(doc, sel.anchor.blockId);
+    if (p) {
+      const t = textOfRuns(p.runs);
+      return t.slice(Math.min(sel.anchor.offset, sel.focus.offset), Math.max(sel.anchor.offset, sel.focus.offset));
+    }
+  }
+  return "";
 };
 
 /** The set of every band (header/footer + variants) paragraph id, memoized per

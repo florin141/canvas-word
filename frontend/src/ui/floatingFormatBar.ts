@@ -50,6 +50,9 @@ export interface FloatingFormatBarDeps {
   actions: FloatingFormatBarActions;
   /** Invoke a custom button (host wires it to the ribbon action context). */
   runCustomButton(button: FloatingToolbarButtonSpec): void;
+  /** Ask AI action — present only when the AI feature is enabled. The button is
+   *  hidden for caret-only display (it needs a non-empty range). */
+  askAi?: () => void;
 }
 
 /** A small, Word-like highlight palette for the highlight dropdown, plus "None". */
@@ -83,12 +86,14 @@ const CSS = `
 .cw-fmtbar .cw-fmtbar-hl{font-weight:700;border-bottom:3px solid #ffff00;border-radius:2px;}
 .cw-fmtbar .cw-fmtbar-color{font-weight:700;border-bottom:3px solid #e00000;border-radius:2px;}
 .cw-fmtbar .cw-fmtbar-caret{font-size:10px;color:#605e5c;}
+.cw-fmtbar .cw-fmtbar-ai-btn{font-weight:600;color:#b8461f;}
 .cw-fmtbar .sep{width:1px;height:18px;background:#e1dfdd;margin:0 3px;flex:0 0 auto;}
 @media (prefers-color-scheme: dark){
   :root[data-theme="dark"] .cw-fmtbar{background:#2b2b2b;border-color:#4a4a4a;color:#e6e6e6;}
   :root[data-theme="dark"] .cw-fmtbar button{color:#e6e6e6;}
   :root[data-theme="dark"] .cw-fmtbar button:hover{background:#3c3c3c;}
   :root[data-theme="dark"] .cw-fmtbar button.active{background:#264b73;border-color:#3d6ba5;}
+  :root[data-theme="dark"] .cw-fmtbar .cw-fmtbar-ai-btn{color:#f08a63;}
   :root[data-theme="dark"] .cw-fmtbar .sep{background:#4a4a4a;}
 }`;
 
@@ -110,6 +115,8 @@ export function createFloatingFormatBar(deps: FloatingFormatBarDeps): ContextToo
 
   // Per-button state updaters, run on every refresh with the current format.
   const refreshers: ((f: CurrentFormat) => void)[] = [];
+  /** The Ask AI group (button + its separator); hidden at a bare caret. */
+  let askAiWrap: HTMLElement | null = null;
 
   const button = (cls: string, title: string, onClick: () => void): HTMLButtonElement => {
     const b = document.createElement("button");
@@ -255,6 +262,24 @@ export function createFloatingFormatBar(deps: FloatingFormatBarDeps): ContextToo
     button("", "Clear all formatting", () => act(() => deps.actions.clearFormatting())).textContent = "⌫";
   };
 
+  const buildAskAi = (): void => {
+    const ask = deps.askAi;
+    if (!ask) {
+      console.warn("[wordcanvas] floatingToolbar: 'askAi' requires ai.enabled");
+      return;
+    }
+    const wrap = document.createElement("span");
+    wrap.className = "cw-fmtbar-ai-wrap";
+    wrap.style.cssText = "display:inline-flex;align-items:center;gap:1px;";
+    const b = button("cw-fmtbar-ai-btn", "Ask AI about the selection", () => ask());
+    b.textContent = "✦ Ask AI";
+    const s = document.createElement("div");
+    s.className = "sep";
+    wrap.append(b, s);
+    bar.appendChild(wrap);
+    askAiWrap = wrap;
+  };
+
   const buildCustom = (spec: FloatingToolbarButtonSpec): void => {
     const title = spec.tooltip ?? spec.label ?? spec.id;
     // Custom buttons drive the editor via the ribbon action context; the context
@@ -273,6 +298,8 @@ export function createFloatingFormatBar(deps: FloatingFormatBarDeps): ContextToo
     if (item === "|") return sep();
     if (typeof item !== "string") return buildCustom(item);
     switch (item) {
+      case "askAi":
+        return buildAskAi();
       case "font":
         return buildFont();
       case "fontSize":
@@ -310,6 +337,9 @@ export function createFloatingFormatBar(deps: FloatingFormatBarDeps): ContextToo
       return deps.anchorRect();
     },
     show: (anchor, viewport) => {
+      // Ask AI acts on a RANGE only: never show it at a bare caret (the bar may
+      // still be visible there when config.onCaret is set).
+      if (askAiWrap) askAiWrap.style.display = deps.hasRangeSelection() ? "inline-flex" : "none";
       // Sync pressed state + labels BEFORE placing (label widths affect layout).
       const f = deps.format();
       for (const update of refreshers) update(f);

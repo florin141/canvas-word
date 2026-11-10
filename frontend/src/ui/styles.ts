@@ -479,6 +479,21 @@ const CSS = `
   font-size: 13px; color: #202124;
 }
 .cw-review.open { display: flex; }
+/* ===== AI assistant panel (contents owned by the lazy AI module) ========== */
+.cw-ai-panel {
+  flex: 0 0 340px; width: 340px; min-width: 280px; min-height: 0; display: none;
+  flex-direction: column; background: #f7f8fa; border-left: 1px solid #e1dfdd;
+  font-size: 13px; color: #202124; position: relative; overflow: hidden;
+}
+.cw-ai-panel.open { display: flex; }
+:root[data-theme="dark"] .cw-ai-panel { background: #202124; border-color: #34373c; color: #e6e6e6; }
+@media (max-width: 760px) {
+  .cw-ai-panel.open {
+    position: absolute; left: 0; right: 0; top: 40%; bottom: 0; width: auto; min-width: 0;
+    flex-basis: auto; z-index: 30; border-left: none; border-top: 1px solid #e1dfdd;
+  }
+  :root[data-theme="dark"] .cw-ai-panel.open { border-top-color: #34373c; }
+}
 .cw-review-head {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 10px 10px 14px; background: #fff; border-bottom: 1px solid #e8eaed;

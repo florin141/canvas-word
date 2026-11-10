@@ -316,6 +316,59 @@ export declare function makeFloatingDialog(o: FloatingDialogOptions): void;
 
 // ===========================================================================
 
+// ===== AI assistant ========================================================
+
+/** A provider selection: which backend, which key, which model. `baseUrl` is
+ *  required only for the "custom" (OpenAI-compatible) provider. */
+export interface ProviderConfig {
+  providerId: string;
+  apiKey?: string;
+  baseUrl?: string;
+  model: string;
+}
+
+/** One turn in a provider chat request. */
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export type AiErrorCode = "auth" | "rate_limit" | "network" | "cors" | "model" | "unknown";
+
+/** Streaming events yielded by every provider adapter (and by a host transport). */
+export type AiStreamEvent =
+  | { type: "text"; delta: string }
+  | { type: "done"; usage?: { input?: number; output?: number } }
+  | { type: "error"; code: AiErrorCode; message: string };
+
+export interface AiRequest {
+  system: string;
+  messages: ChatMessage[];
+  maxTokens?: number;
+}
+
+/** Embedder-owned transport: replace direct browser→provider calls so keys never
+ *  reach the page (your backend holds them and applies auth/quotas). */
+export type AiTransport = (req: AiRequest, signal: AbortSignal) => AsyncIterable<AiStreamEvent>;
+
+/** Opt-in AI writing assistant. With `enabled: false` (the default) the AI module
+ *  is never imported, no listeners are installed and no AI request is made. */
+export interface AiOptions {
+  enabled: boolean;
+  panel?: {
+    /** Open the side panel once the editor is ready. Default false. */
+    defaultOpen?: boolean;
+  };
+  /** Pre-configure a provider (e.g. an embedder-owned custom endpoint). User
+   *  settings saved in this browser take precedence once edited. */
+  provider?: Partial<ProviderConfig>;
+  /** Embedder-owned transport — see AiTransport. */
+  transport?: AiTransport;
+  /** Show the provider settings surface. Default true; flips to false when
+   *  `transport` is set (the host owns configuration). */
+  showSettings?: boolean;
+}
+
 export interface WordCanvasOptions {
   /** Element to mount the editor into. */
   container: HTMLElement;
@@ -373,6 +426,12 @@ export interface WordCanvasOptions {
    *  embedders that don't opt in. Connect an agent via the WebMCP browser
    *  extension / Chrome DevTools MCP. */
   agentTools?: boolean | AgentToolsOptions;
+  /** Opt-in AI writing assistant: chat side panel, "Ask AI" on a text selection,
+   *  and a provider settings surface. Calls go directly from the browser to the
+   *  provider the user chooses (keys live in this browser's localStorage), or
+   *  through an embedder-owned `transport`. The AI module is a separate chunk
+   *  loaded on first use; the default is disabled. */
+  ai?: AiOptions;
   /** Initial view-chrome state — what the reader sees on open (rulers, grid,
    *  panels, ribbon, status bar, the Export buttons, zoom). Omit any field to keep
    *  its default. See WordCanvasViewOptions. */

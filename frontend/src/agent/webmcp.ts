@@ -6,8 +6,8 @@
 // AbortSignal. The polyfill itself is initialized by the caller (editorApp); this
 // module only registers tools, so it stays trivially testable with a fake context.
 
-import type { CharStyle, Document, DocSelection, Fragment, ParaStyle } from "@cw/shared";
-import { blockById, blockIndexOf, DEFAULT_CHAR_STYLE, paragraphsOf, textOfBlock, textOfRuns } from "@cw/shared";
+import type { CharStyle, Document, Fragment, ParaStyle } from "@cw/shared";
+import { blockById, DEFAULT_CHAR_STYLE, documentText, paragraphsOf, selectionText, textOfBlock } from "@cw/shared";
 import type { Editor } from "../index";
 import { dumpLayout, type LayoutDumpOptions } from "./layoutDump";
 
@@ -74,42 +74,6 @@ function searchOpts(args: Record<string, unknown>): { matchCase?: boolean; whole
   const ww = bool(args.wholeWord);
   if (ww !== undefined) o.wholeWord = ww;
   return o;
-}
-
-/** Plain text of the whole body (one line per paragraph, incl. table cells). */
-function documentText(doc: Document): string {
-  return paragraphsOf(doc)
-    .map((p) => textOfRuns(p.runs))
-    .join("\n");
-}
-
-/** Best-effort plain text of the current selection. */
-function selectionText(doc: Document, sel: DocSelection): string {
-  const paras = paragraphsOf(doc);
-  let a = sel.anchor;
-  let f = sel.focus;
-  // O(1) against the shared per-document index — same index space as `paras`.
-  let aIdx = blockIndexOf(doc, a.blockId);
-  let fIdx = blockIndexOf(doc, f.blockId);
-  if (aIdx > fIdx || (aIdx === fIdx && a.offset > f.offset)) {
-    [a, f] = [f, a];
-    [aIdx, fIdx] = [fIdx, aIdx];
-  }
-  if (aIdx < 0 || fIdx < 0) {
-    if (sel.anchor.blockId === sel.focus.blockId) {
-      const p = blockById(doc, sel.anchor.blockId);
-      if (p) {
-        const t = textOfRuns(p.runs);
-        return t.slice(Math.min(sel.anchor.offset, sel.focus.offset), Math.max(sel.anchor.offset, sel.focus.offset));
-      }
-    }
-    return "";
-  }
-  if (aIdx === fIdx) return textOfRuns(paras[aIdx]!.runs).slice(a.offset, f.offset);
-  const parts: string[] = [textOfRuns(paras[aIdx]!.runs).slice(a.offset)];
-  for (let i = aIdx + 1; i < fIdx; i++) parts.push(textOfRuns(paras[i]!.runs));
-  parts.push(textOfRuns(paras[fIdx]!.runs).slice(0, f.offset));
-  return parts.join("\n");
 }
 
 function resolveModelContext(): ModelContextLike | null {

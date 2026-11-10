@@ -1,0 +1,17 @@
+{
+  "name": "@cw/example-ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI writing assistant (ai option) — chat panel, ✦ Ask AI on a selection, provider settings, queue. Static, no build step (browser import map).",
+  "scripts": {
+    "prestart": "node scripts/link-workspace-package.mjs",
+    "start": "serve ."
+  },
+  "dependencies": {
+    "@forevka/wordcanvas": "*"
+  },
+  "devDependencies": {
+    "serve": "^14.2.5"
+  }
+}

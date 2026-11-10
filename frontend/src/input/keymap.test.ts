@@ -100,3 +100,46 @@ describe("createKeymapHandler does not claim AltGr keystrokes", () => {
     expect(deps.undo).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("createKeymapHandler ignores foreign form controls", () => {
+  const target = (tagName: string, isContentEditable = false): EventTarget =>
+    ({ tagName, isContentEditable }) as unknown as EventTarget;
+  const withTarget = (e: KeyboardEvent, t: EventTarget): KeyboardEvent =>
+    ({ ...(e as unknown as Record<string, unknown>), target: t }) as unknown as KeyboardEvent;
+
+  it("does not run editor chords while typing in a panel/dialog input", () => {
+    const { handle, deps } = setup();
+    const e = withTarget(kev("z", "KeyZ", { ctrlKey: true }), target("INPUT"));
+    handle(e);
+    expect(deps.undo).not.toHaveBeenCalled();
+    expect(deps.redo).not.toHaveBeenCalled();
+    expect((e.preventDefault as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+  });
+
+  it("does not run editor chords from a textarea or select", () => {
+    const { handle, deps } = setup();
+    handle(withTarget(kev("b", "KeyB", { ctrlKey: true }), target("TEXTAREA")));
+    handle(withTarget(kev("i", "KeyI", { ctrlKey: true }), target("SELECT")));
+    expect(deps.toggleStyle).not.toHaveBeenCalled();
+  });
+
+  it("accepts keys from the IME proxy when it is the configured editor input", () => {
+    const proxy = target("DIV", true) as unknown as HTMLElement;
+    const deps: KeymapDeps = {
+      dispatch: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      toggleStyle: vi.fn(),
+      editorInput: proxy,
+    };
+    const handle = createKeymapHandler(deps);
+    handle(withTarget(kev("z", "KeyZ", { ctrlKey: true }), proxy));
+    expect(deps.undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects any other contenteditable (e.g. a rich dialog field)", () => {
+    const { handle, deps } = setup();
+    handle(withTarget(kev("z", "KeyZ", { ctrlKey: true }), target("DIV", true)));
+    expect(deps.undo).not.toHaveBeenCalled();
+  });
+});

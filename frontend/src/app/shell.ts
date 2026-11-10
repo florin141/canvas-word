@@ -21,6 +21,9 @@ export interface EditorShell {
   /** Right-docked Inspector (selection-aware property sheet — Font/Paragraph/…).
    *  In-flow like the review pane, shown via the `.open` class. */
   inspector: HTMLElement;
+  /** Right-docked AI chat panel — in-flow, shown via the `.open` class. Its
+   *  content is owned by the lazy AI module. */
+  aiPanel: HTMLElement;
   statusbar: HTMLDivElement;
 }
 
@@ -51,14 +54,15 @@ export function buildShell(container: HTMLElement): EditorShell {
   const app = div("cw-app") as HTMLDivElement;
   const review = div("cw-review", "aside");
   const inspector = div("cw-inspector", "aside");
+  const aiPanel = div("cw-ai-panel", "aside");
   const statusbar = div("cw-statusbar") as HTMLDivElement;
 
   rulerRow.append(rulerCorner, ruler);
   mainRow.append(vruler, app);
   editorpane.append(rulerRow, mainRow);
-  workarea.append(outline, editorpane, inspector, review);
+  workarea.append(outline, editorpane, aiPanel, inspector, review);
   root.append(toolbar, workarea, statusbar);
   container.appendChild(root);
 
-  return { root, toolbar, workarea, outline, ruler, vruler, app, review, inspector, statusbar };
+  return { root, toolbar, workarea, outline, ruler, vruler, app, review, inspector, aiPanel, statusbar };
 }

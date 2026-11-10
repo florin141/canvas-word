@@ -37,7 +37,7 @@ export function placeSelectionBar(
   anchor: AnchorRect,
   bar: BarSize,
   viewport: Viewport,
-  opts: { gap?: number; margin?: number; topGuard?: number; mode?: "above" | "gutter" } = {},
+  opts: { gap?: number; margin?: number; topGuard?: number; mode?: "above" | "gutter" | "below" } = {},
 ): Placement {
   const gap = opts.gap ?? 8;
   const margin = opts.margin ?? 8;
@@ -59,6 +59,15 @@ export function placeSelectionBar(
   const centered = anchor.left + anchor.width / 2 - bar.width / 2;
   const maxLeft = Math.max(margin, viewport.width - bar.width - margin);
   const left = Math.min(Math.max(margin, centered), maxLeft);
+
+  // Below mode (the Ask AI popover): prefer BELOW the anchor, flipping above only
+  // when the card would overflow the bottom of the viewport.
+  if (opts.mode === "below") {
+    const below = anchor.top + anchor.height + gap;
+    const above = anchor.top - bar.height - gap;
+    const top = below + bar.height <= viewport.height - margin ? below : Math.max(above, viewport.top ?? 0);
+    return { left, top: Math.round(top) };
+  }
 
   const above = anchor.top - bar.height - gap;
   const below = anchor.top + anchor.height + gap;

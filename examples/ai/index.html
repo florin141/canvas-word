@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WordCanvas — AI assistant</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      #bar {
+        position: fixed;
+        inset: 0 0 auto 0;
+        z-index: 15;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: #f3f2f1;
+        border-bottom: 1px solid #e1dfdd;
+        font: 13px system-ui, sans-serif;
+        color: #444;
+      }
+      #bar b {
+        color: #605e5c;
+      }
+      #editor {
+        position: fixed;
+        inset: 48px 0 0 0;
+      }
+      #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #fafafa;
+        font: 14px/1.4 system-ui, sans-serif;
+        color: #444;
+        transition: opacity 0.3s ease;
+      }
+      #loader.done {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loader .track {
+        width: 280px;
+        height: 6px;
+        border-radius: 3px;
+        background: #e4e4e4;
+        overflow: hidden;
+      }
+      #loader .bar {
+        height: 100%;
+        width: 0;
+        border-radius: 3px;
+        background: #e8643c;
+        transition: width 0.15s ease;
+      }
+    </style>
+
+    <!-- Serve this example with the repo root as the static root; build the lib
+         first (`npm run build:lib`). In a bundler app you'd just
+         `import { WordCanvas } from "@forevka/wordcanvas"`. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@forevka/wordcanvas": "/node_modules/@forevka/wordcanvas/dist-lib/wordcanvas.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="loader">
+      <div class="label">Loading editor…</div>
+      <div class="track"><div class="bar"></div></div>
+    </div>
+    <div id="bar">
+      <b>AI assistant</b>
+      <span>Ask about the document in the panel · select text for ✦ Ask AI · the gear opens provider settings.</span>
+    </div>
+    <div id="editor"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

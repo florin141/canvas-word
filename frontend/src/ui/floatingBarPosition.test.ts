@@ -33,6 +33,30 @@ describe("placeSelectionBar", () => {
     expect(left).toBe(792);
   });
 
+  it("below mode prefers under the anchor", () => {
+    const anchor = { left: 400, top: 300, width: 100, height: 20 };
+    const { top } = placeSelectionBar(anchor, { width: 340, height: 180 }, VP, { mode: "below" });
+    expect(top).toBe(328); // 300 + 20 + 8
+  });
+
+  it("below mode flips above when the card would overflow the viewport", () => {
+    const anchor = { left: 400, top: 700, width: 100, height: 20 };
+    const { top } = placeSelectionBar(anchor, { width: 340, height: 180 }, VP, { mode: "below" });
+    expect(top).toBe(512); // 700 - 180 - 8
+  });
+
+  it("below mode clamps the flipped card under the viewport top", () => {
+    // A short viewport: the card can't fit below and would flip to a negative top.
+    const anchor = { left: 400, top: 300, width: 100, height: 20 };
+    const { top } = placeSelectionBar(
+      anchor,
+      { width: 340, height: 300 },
+      { width: 1000, height: 500, top: 60 },
+      { mode: "below" },
+    );
+    expect(top).toBe(60);
+  });
+
   it("honors a custom gap", () => {
     const anchor = { left: 400, top: 300, width: 100, height: 20 };
     const { top } = placeSelectionBar(anchor, { width: 200, height: 30 }, VP, { gap: 20 });
